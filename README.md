@@ -1,6 +1,6 @@
-# Uranic Toolkit
+# UBP / Uranic Better Plugins
 
-A personal Revenge plugin bundle for custom tweaks made by Uranic.
+A personal Revenge plugin bundle for improved plugins and tweaks made by Uranic.
 
 ## Current features
 - Avatar overrides for multiple users

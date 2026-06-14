@@ -194,10 +194,10 @@ export default () => {
       >
         {page === "home" ? (
           <>
-            <FormRow label="Uranic Toolkit" />
+            <FormRow label="UBP" />
             <ReactNative.View style={styles.sectionText}>
               <ReactNative.Text style={styles.sectionTextValue}>
-                Personal Revenge tweaks made by Uranic.
+                Improved Revenge plugins and tweaks made by Uranic.
               </ReactNative.Text>
             </ReactNative.View>
             <FormDivider />
