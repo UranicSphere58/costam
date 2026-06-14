@@ -11,13 +11,6 @@ type UserOverride = {
   imageUrl?: string;
 };
 
-type LoggedMessage = {
-  id: string;
-  channelId: string;
-  deletedAt: number;
-  message: any;
-};
-
 type SettingsPage = "home" | "overrides" | "messageLogger";
 
 const styles = ReactNative.StyleSheet.create({
@@ -82,20 +75,44 @@ function getOverrides(): UserOverride[] {
   return storage.overrides;
 }
 
-function getLoggedMessages(): LoggedMessage[] {
-  if (!Array.isArray(storage.loggedMessages)) {
-    storage.loggedMessages = [];
-  }
-
-  return storage.loggedMessages;
-}
-
 function isMessageLoggerEnabled(): boolean {
   if (typeof storage.messageLoggerEnabled !== "boolean") {
     storage.messageLoggerEnabled = true;
   }
 
   return storage.messageLoggerEnabled;
+}
+
+function shouldLogCurrentChannel(): boolean {
+  if (typeof storage.messageLoggerLogCurrentChannel !== "boolean") {
+    storage.messageLoggerLogCurrentChannel = true;
+  }
+
+  return storage.messageLoggerLogCurrentChannel;
+}
+
+function shouldLogCurrentServer(): boolean {
+  if (typeof storage.messageLoggerLogCurrentServer !== "boolean") {
+    storage.messageLoggerLogCurrentServer = true;
+  }
+
+  return storage.messageLoggerLogCurrentServer;
+}
+
+function getMessageLoggerWhitelist(): string {
+  if (typeof storage.messageLoggerWhitelist !== "string") {
+    storage.messageLoggerWhitelist = "";
+  }
+
+  return storage.messageLoggerWhitelist;
+}
+
+function shouldRevealSilentDeletes(): boolean {
+  if (typeof storage.messageLoggerRevealSilentDeletes !== "boolean") {
+    storage.messageLoggerRevealSilentDeletes = true;
+  }
+
+  return storage.messageLoggerRevealSilentDeletes;
 }
 
 function refreshUser(userId?: string): void {
@@ -122,7 +139,6 @@ export default () => {
   const scrollRef = React.useRef<any>(null);
   const [page, setPage] = React.useState<SettingsPage>("home");
   const overrides = getOverrides();
-  const loggedMessages = getLoggedMessages();
 
   const openPage = (nextPage: SettingsPage) => {
     setPage(nextPage);
@@ -193,15 +209,9 @@ export default () => {
             <FormDivider />
             <FormRow
               label="Message logger"
-              subLabel={`Saved deleted messages: ${loggedMessages.length}`}
+              subLabel="Restore deleted messages in chat after reload"
               onPress={() => openPage("messageLogger")}
             />
-            <ReactNative.View style={styles.sectionText}>
-              <ReactNative.Text style={styles.sectionTextValue}>
-                Tries to keep deleted messages visible and restore them after
-                reload.
-              </ReactNative.Text>
-            </ReactNative.View>
           </>
         ) : page === "overrides" ? (
           <>
@@ -263,7 +273,7 @@ export default () => {
           <>
             <FormRow
               label="Message logger"
-              subLabel="Keep deleted messages saved inside the plugin and restore them after reload"
+              subLabel="Restore deleted messages in chat after reload"
             />
             <FormSwitchRow
               label="Enable message logger"
@@ -272,6 +282,45 @@ export default () => {
                 void (storage.messageLoggerEnabled = value)
               }
             />
+            <FormSwitchRow
+              label="Log current channel"
+              subLabel="Keep deleted messages from the currently opened channel"
+              value={shouldLogCurrentChannel()}
+              onValueChange={(value) =>
+                void (storage.messageLoggerLogCurrentChannel = value)
+              }
+            />
+            <FormSwitchRow
+              label="Log current server"
+              subLabel="Keep deleted messages from the currently opened server"
+              value={shouldLogCurrentServer()}
+              onValueChange={(value) =>
+                void (storage.messageLoggerLogCurrentServer = value)
+              }
+            />
+            <FormSwitchRow
+              label="Reveal silent deletes"
+              subLabel="Prevent nonce-based fake replacements from hiding the original message"
+              value={shouldRevealSilentDeletes()}
+              onValueChange={(value) =>
+                void (storage.messageLoggerRevealSilentDeletes = value)
+              }
+            />
+            <FormDivider />
+            <FormRow label="Whitelist" />
+            <FormInput
+              placeholder="Comma separated server/channel IDs"
+              value={getMessageLoggerWhitelist()}
+              onChange={(value) =>
+                void (storage.messageLoggerWhitelist = value)
+              }
+            />
+            <ReactNative.View style={styles.sectionText}>
+              <ReactNative.Text style={styles.sectionTextValue}>
+                Messages are only kept from the current channel, the current
+                server, or IDs added to the whitelist.
+              </ReactNative.Text>
+            </ReactNative.View>
             <FormDivider />
             <ReactNative.View style={styles.rowActions}>
               <ReactNative.Pressable onPress={() => openPage("home")}>
@@ -285,36 +334,10 @@ export default () => {
                 <ReactNative.Text
                   style={[styles.actionText, styles.removeText]}
                 >
-                  Clear log
+                  Clear saved messages
                 </ReactNative.Text>
               </ReactNative.Pressable>
             </ReactNative.View>
-            <FormDivider />
-            {loggedMessages.length === 0 ? (
-              <ReactNative.View style={styles.emptyState}>
-                <ReactNative.Text style={styles.emptyStateText}>
-                  No deleted messages saved yet.
-                </ReactNative.Text>
-              </ReactNative.View>
-            ) : (
-              loggedMessages.map((entry, index) => (
-                <ReactNative.View key={`logged-message-${entry.id}-${index}`}>
-                  <FormRow
-                    label={entry.message?.author?.username || "Unknown author"}
-                    subLabel={entry.message?.content || "[No text content]"}
-                  />
-                  <ReactNative.View style={styles.sectionText}>
-                    <ReactNative.Text style={styles.sectionTextValue}>
-                      Channel: {entry.channelId}
-                    </ReactNative.Text>
-                    <ReactNative.Text style={styles.sectionTextValue}>
-                      Deleted: {new Date(entry.deletedAt).toLocaleString()}
-                    </ReactNative.Text>
-                  </ReactNative.View>
-                  <FormDivider />
-                </ReactNative.View>
-              ))
-            )}
           </>
         )}
       </ReactNative.ScrollView>

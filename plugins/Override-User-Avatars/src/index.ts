@@ -26,9 +26,12 @@ const MessageRecordUtils = findByProps(
 );
 const MessageRecord = findByName("MessageRecord", false);
 const RowManager = findByName("RowManager");
+const SelectedChannelStore = findByStoreName("SelectedChannelStore");
+const ChannelStore = findByStoreName("ChannelStore");
 
 const runtimeMessageCache = new Map<string, any>();
 const runtimeMessageCacheOrder: string[] = [];
+const silentReplacementMap = new Map<string, string>();
 
 let patches = [];
 
@@ -84,6 +87,41 @@ function isMessageLoggerEnabled(): boolean {
   }
 
   return storage.messageLoggerEnabled;
+}
+
+function shouldLogCurrentChannel(): boolean {
+  if (typeof storage.messageLoggerLogCurrentChannel !== "boolean") {
+    storage.messageLoggerLogCurrentChannel = true;
+  }
+
+  return storage.messageLoggerLogCurrentChannel;
+}
+
+function shouldLogCurrentServer(): boolean {
+  if (typeof storage.messageLoggerLogCurrentServer !== "boolean") {
+    storage.messageLoggerLogCurrentServer = true;
+  }
+
+  return storage.messageLoggerLogCurrentServer;
+}
+
+function getMessageLoggerWhitelist(): string[] {
+  if (typeof storage.messageLoggerWhitelist !== "string") {
+    storage.messageLoggerWhitelist = "";
+  }
+
+  return storage.messageLoggerWhitelist
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function shouldRevealSilentDeletes(): boolean {
+  if (typeof storage.messageLoggerRevealSilentDeletes !== "boolean") {
+    storage.messageLoggerRevealSilentDeletes = true;
+  }
+
+  return storage.messageLoggerRevealSilentDeletes;
 }
 
 function getMessageCacheKey(
@@ -235,6 +273,101 @@ function mergeMessageUpdateIntoCache(partialMessage: any): void {
   });
 }
 
+function getCurrentChannelId(): string | null {
+  return SelectedChannelStore?.getChannelId?.() || null;
+}
+
+function getGuildIdForChannel(channelId?: string): string | null {
+  if (!channelId) {
+    return null;
+  }
+
+  return ChannelStore?.getChannel?.(channelId)?.guild_id || null;
+}
+
+function shouldLogMessage(
+  message?: any,
+  explicitChannelId?: string,
+  explicitGuildId?: string,
+): boolean {
+  if (!isMessageLoggerEnabled()) {
+    return false;
+  }
+
+  const channelId = explicitChannelId || message?.channel_id || null;
+  const guildId =
+    explicitGuildId ||
+    message?.guildId ||
+    message?.guild_id ||
+    getGuildIdForChannel(channelId);
+  const currentChannelId = getCurrentChannelId();
+  const currentGuildId = getGuildIdForChannel(currentChannelId);
+  const whitelist = getMessageLoggerWhitelist();
+
+  if (channelId && whitelist.includes(channelId)) {
+    return true;
+  }
+
+  if (guildId && whitelist.includes(guildId)) {
+    return true;
+  }
+
+  if (
+    shouldLogCurrentChannel() &&
+    channelId &&
+    currentChannelId &&
+    channelId === currentChannelId
+  ) {
+    return true;
+  }
+
+  if (
+    shouldLogCurrentServer() &&
+    guildId &&
+    currentGuildId &&
+    guildId === currentGuildId
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function detectSilentReplacement(
+  message: any,
+): { replacementId: string; originalId: string } | null {
+  if (!shouldRevealSilentDeletes()) {
+    return null;
+  }
+
+  const channelId = message?.channel_id;
+  const replacementId = message?.id;
+  const originalId = message?.nonce != null ? String(message.nonce) : null;
+  if (
+    !channelId ||
+    !replacementId ||
+    !originalId ||
+    originalId === replacementId
+  ) {
+    return null;
+  }
+
+  const originalMessage = getMessageForLogging(channelId, originalId);
+  if (!originalMessage) {
+    return null;
+  }
+
+  if (
+    message?.author?.id &&
+    originalMessage?.author?.id &&
+    message.author.id !== originalMessage.author.id
+  ) {
+    return null;
+  }
+
+  return { replacementId, originalId };
+}
+
 function getMessagesFromLoadEvent(event: any): any[] | null {
   if (Array.isArray(event?.messages)) {
     return event.messages;
@@ -372,6 +505,25 @@ function setupMessageLogger(): void {
 
       try {
         if (event.type === "MESSAGE_CREATE") {
+          const silentReplacement = detectSilentReplacement(event.message);
+          if (silentReplacement) {
+            silentReplacementMap.set(
+              silentReplacement.replacementId,
+              silentReplacement.originalId,
+            );
+
+            return [
+              {
+                ...event,
+                message: {
+                  ...cloneMessage(event.message),
+                  nonce: `toolkit-${silentReplacement.originalId}`,
+                  __toolkit_silent_replacement: true,
+                },
+              },
+            ];
+          }
+
           cacheRuntimeMessage(event.message);
           return [event];
         }
@@ -390,8 +542,16 @@ function setupMessageLogger(): void {
 
         if (event.type === "MESSAGE_DELETE_BULK") {
           for (const messageId of event.ids || []) {
+            if (silentReplacementMap.has(messageId)) {
+              silentReplacementMap.delete(messageId);
+              continue;
+            }
+
             const message = getMessageForLogging(event.channelId, messageId);
-            if (message) {
+            if (
+              message &&
+              shouldLogMessage(message, event.channelId, event.guildId)
+            ) {
               saveLoggedMessage(message);
             }
           }
@@ -407,6 +567,11 @@ function setupMessageLogger(): void {
           return [event];
         }
 
+        if (silentReplacementMap.has(event.id)) {
+          silentReplacementMap.delete(event.id);
+          return [event];
+        }
+
         const message = getMessageForLogging(event.channelId, event.id);
         if (!message) {
           return [event];
@@ -417,6 +582,10 @@ function setupMessageLogger(): void {
         }
 
         if (message.state === "SEND_FAILED") {
+          return [event];
+        }
+
+        if (!shouldLogMessage(message, event.channelId, event.guildId)) {
           return [event];
         }
 
@@ -450,9 +619,9 @@ function setupMessageLogger(): void {
         row.message.edited = "deleted";
         row.backgroundHighlight ??= {};
         row.backgroundHighlight.backgroundColor =
-          ReactNative.processColor("#da373c22");
+          ReactNative.processColor("#ff4d4f55");
         row.backgroundHighlight.gutterColor =
-          ReactNative.processColor("#da373cff");
+          ReactNative.processColor("#ff4d4fff");
       }
     }),
   );
@@ -521,6 +690,7 @@ function cleanupMessageLogger(): void {
 
   runtimeMessageCache.clear();
   runtimeMessageCacheOrder.length = 0;
+  silentReplacementMap.clear();
 }
 
 export function onLoad(): void {
