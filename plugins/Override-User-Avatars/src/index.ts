@@ -489,15 +489,8 @@ function getSilentReplacementOriginal(message: any): any | null {
     return null;
   }
 
-  silentReplacementMap.set(
-    silentReplacement.replacementId,
-    silentReplacement.originalId,
-  );
-
   return normalizeMessageForRender({
     ...silentReplacement.originalMessage,
-    id: silentReplacement.originalId,
-    channel_id: message?.channel_id,
     deleted: true,
     __toolkit_deleted: true,
     __toolkit_silent_deleted: true,
@@ -510,7 +503,18 @@ function applyOriginalToRenderedRow(row: any, originalMessage: any): void {
     return;
   }
 
-  Object.assign(row.message, normalizeMessageForRender(originalMessage));
+  const normalizedOriginalMessage = normalizeMessageForRender(originalMessage);
+  const preservedTimestamp = row.message.timestamp;
+  const preservedEditedTimestamp = row.message.editedTimestamp;
+  const preservedDeletedTimestamp = row.message.deletedTimestamp;
+  const preservedId = row.message.id;
+
+  Object.assign(row.message, normalizedOriginalMessage);
+
+  row.message.id = preservedId;
+  row.message.timestamp = preservedTimestamp;
+  row.message.editedTimestamp = preservedEditedTimestamp;
+  row.message.deletedTimestamp = preservedDeletedTimestamp;
 }
 
 function getMessagesFromLoadEvent(event: any): any[] | null {
@@ -650,20 +654,6 @@ function setupMessageLogger(): void {
 
       try {
         if (event.type === "MESSAGE_CREATE") {
-          const silentReplacement = detectSilentReplacement(
-            event.message,
-            event,
-          );
-          if (silentReplacement) {
-            silentReplacementMap.set(
-              silentReplacement.replacementId,
-              silentReplacement.originalId,
-            );
-
-            cacheRuntimeMessage(silentReplacement.originalMessage);
-            return;
-          }
-
           if (!event.optimistic && event.message?.state !== "SENDING") {
             cacheRuntimeMessage(event.message);
           }
@@ -671,20 +661,6 @@ function setupMessageLogger(): void {
         }
 
         if (event.type === "MESSAGE_UPDATE") {
-          const silentReplacement = detectSilentReplacement(
-            event.message,
-            event,
-          );
-          if (silentReplacement) {
-            silentReplacementMap.set(
-              silentReplacement.replacementId,
-              silentReplacement.originalId,
-            );
-
-            cacheRuntimeMessage(silentReplacement.originalMessage);
-            return;
-          }
-
           if (event.message?.state !== "SENDING") {
             mergeMessageUpdateIntoCache(event.message);
           }
@@ -699,11 +675,6 @@ function setupMessageLogger(): void {
 
         if (event.type === "MESSAGE_DELETE_BULK") {
           for (const messageId of event.ids || []) {
-            if (silentReplacementMap.has(messageId)) {
-              silentReplacementMap.delete(messageId);
-              continue;
-            }
-
             const message = getMessageForLogging(event.channelId, messageId);
             if (
               message &&
@@ -724,14 +695,32 @@ function setupMessageLogger(): void {
           return;
         }
 
-        if (silentReplacementMap.has(event.id)) {
-          silentReplacementMap.delete(event.id);
-          return;
-        }
-
         const message = getMessageForLogging(event.channelId, event.id);
         if (!message) {
           return;
+        }
+
+        const silentDeleteOriginal = getSilentReplacementOriginal(message);
+        if (silentDeleteOriginal) {
+          if (
+            !shouldLogMessage(
+              silentDeleteOriginal,
+              event.channelId,
+              event.guildId,
+            )
+          ) {
+            return;
+          }
+
+          saveLoggedMessage(silentDeleteOriginal);
+
+          return [
+            {
+              ...event,
+              type: "MESSAGE_UPDATE",
+              message: silentDeleteOriginal,
+            },
+          ];
         }
 
         if (message.author?.id === "1") {
