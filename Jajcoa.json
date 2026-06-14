@@ -1,6 +1,6 @@
 {
-  "name": "Jajco Amethyst",
-  "description": "Vendetta dark with full purple Amethyst accents",
+  "name": "Jajco Vendetta Amethyst",
+  "description": "Dark Vendetta base with full purple Amethyst override",
   "authors": [
     {
       "name": "𝚄𝚛𝚊𝚗𝚒𝚌",
@@ -10,9 +10,6 @@
   "spec": 2,
 
   "semanticColors": {
-    "ANDROID_NAVIGATION_SCRIM_BACKGROUND": ["#0E0E0F"],
-    "ANDROID_RIPPLE": ["#5300b328"],
-
     "BACKGROUND_PRIMARY": ["#161519"],
     "BACKGROUND_SECONDARY": ["#282237"],
     "BACKGROUND_TERTIARY": ["#121215"],
@@ -21,37 +18,18 @@
     "BACKGROUND_ACCENT": ["#7809f6"],
     "BACKGROUND_MODIFIER_ACCENT": ["#7809f614"],
 
-    "BG_BASE_PRIMARY": ["#161519"],
-    "BG_BASE_SECONDARY": ["#0f0f10"],
-    "BG_BASE_TERTIARY": ["#121215"],
-
-    "BG_BRAND": ["#7809f695"],
-    "BG_SURFACE_RAISED": ["#0E0D10"],
-    "BG_SURFACE_OVERLAY_TMP": ["#0B0B0C"],
-
-    "CARD_PRIMARY_BG": ["#0E0E0F"],
-    "CARD_SECONDARY_BG": ["#0E0E0F"],
-
-    "CHANNEL_ICON": ["#7809f665"],
-
-    "EMBED_BACKGROUND": ["#111011"],
-    "EMBED_BACKGROUND_ALTERNATE": ["#111011"],
-
-    "INTERACTIVE_ACTIVE": ["#7809f6"],
-    "INTERACTIVE_NORMAL": ["#7809f6"],
-    "INTERACTIVE_MUTED": ["#262627"],
-    "INTERACTIVE_HOVER": ["#a56bff"],
-
     "TEXT_NORMAL": ["#dbdee1"],
-    "TEXT_PRIMARY": ["#dbdee1"],
     "TEXT_SECONDARY": ["#b5bac1"],
     "TEXT_MUTED": ["#818491"],
     "TEXT_LINK": ["#7809f6"],
 
-    "THREAD_CHANNEL_SPINE": ["#7809f6"],
+    "INTERACTIVE_NORMAL": ["#7809f6"],
+    "INTERACTIVE_ACTIVE": ["#7809f6"],
+    "INTERACTIVE_HOVER": ["#a56bff"],
 
-    "BACKGROUND_MESSAGE_AUTOMOD": ["#7809f60d"],
-    "BACKGROUND_MESSAGE_AUTOMOD_HOVER": ["#7809f61a"],
+    "CHANNEL_ICON": ["#7809f665"],
+
+    "THREAD_CHANNEL_SPINE": ["#7809f6"],
 
     "BACKGROUND_MENTIONED": ["#7809f615"],
     "BACKGROUND_MENTIONED_HOVER": ["#7809f630"],
@@ -61,29 +39,40 @@
     "BACKGROUND_MODIFIER_SELECTED": ["#7809f620"],
 
     "REDESIGN_CHANNEL_CATEGORY_NAME_TEXT": ["#801bf3"],
+
+    "REDESIGN_BUTTON_PRIMARY_BACKGROUND": ["#7809f6"],
     "REDESIGN_BUTTON_SECONDARY_BACKGROUND": ["#4f0094"],
     "REDESIGN_BUTTON_SECONDARY_BORDER": ["#4f0094"],
     "REDESIGN_BUTTON_SECONDARY_PRESSED_BACKGROUND": ["#7809f6"],
-    "REDESIGN_BUTTON_TERTIARY_TEXT": ["#7809f6"],
 
-    "PANEL_BG": ["#0C0C0D"],
-    "INPUT_BACKGROUND": ["#0E0E0F"]
+    "REDESIGN_CHAT_INPUT_BACKGROUND": ["#0E0E0F"],
+    "INPUT_BACKGROUND": ["#0E0E0F"],
+
+    "PANEL_BG": ["#0C0C0D"]
   },
 
   "rawColors": {
     "BRAND_260": "#7809f6",
+    "BRAND_360": "#7809f6",
     "BRAND_500": "#7809f6",
     "BRAND_560": "#380c6b",
 
-    "BLUE_345": "#7809f6",
+    "PRIMARY_500": "#161519",
+    "PRIMARY_600": "#0f0f10",
+    "PRIMARY_660": "#121215",
+    "PRIMARY_700": "#0E0D10",
+    "PRIMARY_800": "#0C0C0D",
 
     "PLUM_13": "#161519",
-    "PLUM_17": "#121215",
-    "PLUM_20": "#0E0D10",
-
-    "PRIMARY_600": "#161519",
-    "PRIMARY_700": "#121215",
-    "PRIMARY_800": "#0E0D10"
+    "PLUM_14": "#121215",
+    "PLUM_15": "#161519",
+    "PLUM_16": "#121215",
+    "PLUM_17": "#0E0D10",
+    "PLUM_18": "#111011",
+    "PLUM_19": "#0E0D10",
+    "PLUM_20": "#09090A",
+    "PLUM_22": "#0E0D10",
+    "PLUM_24": "#121212"
   },
 
   "plus": {
