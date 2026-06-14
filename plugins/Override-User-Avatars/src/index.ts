@@ -367,10 +367,38 @@ function shouldLogMessage(
   return false;
 }
 
+function isLikelySilentPlaceholder(message: any): boolean {
+  const content =
+    typeof message?.content === "string" ? message.content.trim() : "";
+  const hasAttachments =
+    Array.isArray(message?.attachments) && message.attachments.length > 0;
+  const hasEmbeds = Array.isArray(message?.embeds) && message.embeds.length > 0;
+  const suppressNotifications = (message?.flags & 4096) === 4096;
+
+  if (hasAttachments || hasEmbeds) {
+    return false;
+  }
+
+  return content === "" || content === "** **" || suppressNotifications;
+}
+
 function detectSilentReplacement(
   message: any,
+  event?: any,
 ): { replacementId: string; originalId: string } | null {
   if (!shouldRevealSilentDeletes()) {
+    return null;
+  }
+
+  if (
+    event?.optimistic ||
+    message?.optimistic ||
+    message?.state === "SENDING"
+  ) {
+    return null;
+  }
+
+  if (!isLikelySilentPlaceholder(message)) {
     return null;
   }
 
@@ -387,7 +415,7 @@ function detectSilentReplacement(
   }
 
   const originalMessage = getMessageForLogging(channelId, originalId);
-  if (!originalMessage) {
+  if (!originalMessage || originalMessage.__toolkit_deleted) {
     return null;
   }
 
@@ -539,7 +567,10 @@ function setupMessageLogger(): void {
 
       try {
         if (event.type === "MESSAGE_CREATE") {
-          const silentReplacement = detectSilentReplacement(event.message);
+          const silentReplacement = detectSilentReplacement(
+            event.message,
+            event,
+          );
           if (silentReplacement) {
             silentReplacementMap.set(
               silentReplacement.replacementId,
@@ -548,25 +579,36 @@ function setupMessageLogger(): void {
 
             return [
               {
-                type: "__TOOLKIT_IGNORE",
-                __toolkit_silent_replacement: true,
+                ...event,
+                message: {
+                  ...sanitizeMessageForLogger(event.message),
+                  content: "",
+                  attachments: [],
+                  embeds: [],
+                  __toolkit_hidden: true,
+                  __toolkit_silent_replacement: true,
+                },
               },
             ];
           }
 
-          cacheRuntimeMessage(event.message);
-          return [event];
+          if (!event.optimistic && event.message?.state !== "SENDING") {
+            cacheRuntimeMessage(event.message);
+          }
+          return;
         }
 
         if (event.type === "MESSAGE_UPDATE") {
-          mergeMessageUpdateIntoCache(event.message);
-          return [event];
+          if (event.message?.state !== "SENDING") {
+            mergeMessageUpdateIntoCache(event.message);
+          }
+          return;
         }
 
         if (event.type === "LOAD_MESSAGES_SUCCESS") {
           const loadedMessages = getMessagesFromLoadEvent(event) || [];
           loadedMessages.forEach(cacheRuntimeMessage);
-          return [event];
+          return;
         }
 
         if (event.type === "MESSAGE_DELETE_BULK") {
@@ -585,37 +627,37 @@ function setupMessageLogger(): void {
             }
           }
 
-          return [event];
+          return;
         }
 
         if (event.type !== "MESSAGE_DELETE") {
-          return [event];
+          return;
         }
 
         if (event.__toolkit_cleanup) {
-          return [event];
+          return;
         }
 
         if (silentReplacementMap.has(event.id)) {
           silentReplacementMap.delete(event.id);
-          return [event];
+          return;
         }
 
         const message = getMessageForLogging(event.channelId, event.id);
         if (!message) {
-          return [event];
+          return;
         }
 
         if (message.author?.id === "1") {
-          return [event];
+          return;
         }
 
         if (message.state === "SEND_FAILED") {
-          return [event];
+          return;
         }
 
         if (!shouldLogMessage(message, event.channelId, event.guildId)) {
-          return [event];
+          return;
         }
 
         const deletedMessage = markMessageAsDeleted(message);
@@ -633,7 +675,7 @@ function setupMessageLogger(): void {
           `${TAG} message logger hook failed`,
           error?.message ?? error,
         );
-        return [event];
+        return;
       }
     }),
   );
