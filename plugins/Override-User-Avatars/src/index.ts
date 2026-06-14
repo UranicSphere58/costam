@@ -143,6 +143,43 @@ function cloneMessage(message: any): any {
   return typeof message.toJS === "function" ? message.toJS() : { ...message };
 }
 
+function sanitizeEmbedForLogger(embed: any): any {
+  if (!embed) {
+    return embed;
+  }
+
+  const sanitizedEmbed = {
+    ...embed,
+    fields: Array.isArray(embed.fields)
+      ? embed.fields.map((field: any) => ({ ...field }))
+      : embed.fields,
+    footer: embed.footer ? { ...embed.footer } : embed.footer,
+    author: embed.author ? { ...embed.author } : embed.author,
+    provider: embed.provider ? { ...embed.provider } : embed.provider,
+    image: embed.image ? { ...embed.image } : embed.image,
+    thumbnail: embed.thumbnail ? { ...embed.thumbnail } : embed.thumbnail,
+    video: embed.video ? { ...embed.video } : embed.video,
+  };
+
+  if (typeof sanitizedEmbed.colorString === "string") {
+    delete sanitizedEmbed.colorString;
+  }
+
+  if (
+    typeof sanitizedEmbed.color === "string" &&
+    sanitizedEmbed.color.startsWith("#")
+  ) {
+    const parsedColor = parseInt(sanitizedEmbed.color.slice(1), 16);
+    if (!Number.isNaN(parsedColor)) {
+      sanitizedEmbed.color = parsedColor;
+    } else {
+      delete sanitizedEmbed.color;
+    }
+  }
+
+  return sanitizedEmbed;
+}
+
 function sanitizeMessageForLogger(message: any): any {
   const serializedMessage = cloneMessage(message);
   if (!serializedMessage) {
@@ -157,7 +194,9 @@ function sanitizeMessageForLogger(message: any): any {
         }))
       : [],
     embeds: Array.isArray(serializedMessage.embeds)
-      ? serializedMessage.embeds.map((embed: any) => ({ ...embed }))
+      ? serializedMessage.embeds.map((embed: any) =>
+          sanitizeEmbedForLogger(embed),
+        )
       : [],
     mentions: Array.isArray(serializedMessage.mentions)
       ? serializedMessage.mentions.map((mention: any) => ({ ...mention }))
@@ -175,6 +214,27 @@ function sanitizeMessageForLogger(message: any): any {
   delete sanitizedMessage.__toolkit_silent_replacement;
 
   return sanitizedMessage;
+}
+
+function normalizeMessageForRender(message: any): any {
+  if (!message) {
+    return message;
+  }
+
+  const normalizedMessage = { ...message };
+  const timestampFields = ["timestamp", "editedTimestamp", "deletedTimestamp"];
+
+  for (const field of timestampFields) {
+    const value = normalizedMessage[field];
+    if (typeof value === "string") {
+      const parsed = new Date(value);
+      if (!Number.isNaN(parsed.getTime())) {
+        normalizedMessage[field] = parsed;
+      }
+    }
+  }
+
+  return normalizedMessage;
 }
 
 function cacheRuntimeMessage(message: any): void {
@@ -255,13 +315,13 @@ function getMessageForLogging(
 
 function markMessageAsDeleted(message: any): any {
   const serializedMessage = sanitizeMessageForLogger(message);
-  return {
+  return normalizeMessageForRender({
     ...serializedMessage,
     deleted: true,
     __toolkit_deleted: true,
     deletedTimestamp:
       serializedMessage?.deletedTimestamp || new Date().toISOString(),
-  };
+  });
 }
 
 function saveLoggedMessage(message: any): void {
@@ -434,12 +494,15 @@ function getSilentReplacementOriginal(message: any): any | null {
     silentReplacement.originalId,
   );
 
-  return {
+  return normalizeMessageForRender({
     ...silentReplacement.originalMessage,
     id: silentReplacement.originalId,
     channel_id: message?.channel_id,
+    deleted: true,
+    __toolkit_deleted: true,
+    __toolkit_silent_deleted: true,
     __toolkit_restored_original: true,
-  };
+  });
 }
 
 function applyOriginalToRenderedRow(row: any, originalMessage: any): void {
@@ -447,7 +510,7 @@ function applyOriginalToRenderedRow(row: any, originalMessage: any): void {
     return;
   }
 
-  Object.assign(row.message, originalMessage);
+  Object.assign(row.message, normalizeMessageForRender(originalMessage));
 }
 
 function getMessagesFromLoadEvent(event: any): any[] | null {
@@ -598,18 +661,7 @@ function setupMessageLogger(): void {
             );
 
             cacheRuntimeMessage(silentReplacement.originalMessage);
-
-            return [
-              {
-                type: "MESSAGE_UPDATE",
-                message: {
-                  ...silentReplacement.originalMessage,
-                  id: silentReplacement.originalId,
-                  channel_id: event.message?.channel_id,
-                  __toolkit_restored_original: true,
-                },
-              },
-            ];
+            return;
           }
 
           if (!event.optimistic && event.message?.state !== "SENDING") {
@@ -619,6 +671,20 @@ function setupMessageLogger(): void {
         }
 
         if (event.type === "MESSAGE_UPDATE") {
+          const silentReplacement = detectSilentReplacement(
+            event.message,
+            event,
+          );
+          if (silentReplacement) {
+            silentReplacementMap.set(
+              silentReplacement.replacementId,
+              silentReplacement.originalId,
+            );
+
+            cacheRuntimeMessage(silentReplacement.originalMessage);
+            return;
+          }
+
           if (event.message?.state !== "SENDING") {
             mergeMessageUpdateIntoCache(event.message);
           }
@@ -712,12 +778,18 @@ function setupMessageLogger(): void {
       }
 
       if (row?.message?.__toolkit_deleted) {
-        row.message.edited = "deleted";
+        row.message.edited = row.message.__toolkit_silent_deleted
+          ? "silent deleted"
+          : "deleted";
         row.backgroundHighlight ??= {};
-        row.backgroundHighlight.backgroundColor =
-          ReactNative.processColor("#ff4d4f55");
-        row.backgroundHighlight.gutterColor =
-          ReactNative.processColor("#ff4d4fff");
+        row.backgroundHighlight.backgroundColor = row.message
+          .__toolkit_silent_deleted
+          ? ReactNative.processColor("#5865f255")
+          : ReactNative.processColor("#ff4d4f55");
+        row.backgroundHighlight.gutterColor = row.message
+          .__toolkit_silent_deleted
+          ? ReactNative.processColor("#5865f2ff")
+          : ReactNative.processColor("#ff4d4fff");
       }
     }),
   );
