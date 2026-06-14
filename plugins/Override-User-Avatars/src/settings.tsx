@@ -4,22 +4,28 @@ import { storage } from "@vendetta/plugin";
 import { useProxy } from "@vendetta/storage";
 import { Forms } from "@vendetta/ui/components";
 
-const { FormDivider, FormInput, FormRow } = Forms;
+const { FormDivider, FormInput, FormRow, FormSwitchRow } = Forms;
 
 type UserOverride = {
   userId?: string;
   imageUrl?: string;
-  displayName?: string;
 };
 
-type SettingsPage = "home" | "overrides";
+type LoggedMessage = {
+  id: string;
+  channelId: string;
+  deletedAt: number;
+  message: any;
+};
+
+type SettingsPage = "home" | "overrides" | "messageLogger";
 
 const styles = ReactNative.StyleSheet.create({
   container: {
     flex: 1,
   },
   content: {
-    paddingBottom: 260,
+    paddingBottom: 360,
   },
   emptyState: {
     opacity: 0.7,
@@ -69,12 +75,27 @@ function getOverrides(): UserOverride[] {
     migratedOverrides.push({
       userId: storage.targetUserId || "",
       imageUrl: storage.imageUrl || "",
-      displayName: "",
     });
   }
 
   storage.overrides = migratedOverrides;
   return storage.overrides;
+}
+
+function getLoggedMessages(): LoggedMessage[] {
+  if (!Array.isArray(storage.loggedMessages)) {
+    storage.loggedMessages = [];
+  }
+
+  return storage.loggedMessages;
+}
+
+function isMessageLoggerEnabled(): boolean {
+  if (typeof storage.messageLoggerEnabled !== "boolean") {
+    storage.messageLoggerEnabled = true;
+  }
+
+  return storage.messageLoggerEnabled;
 }
 
 function refreshUser(userId?: string): void {
@@ -101,6 +122,7 @@ export default () => {
   const scrollRef = React.useRef<any>(null);
   const [page, setPage] = React.useState<SettingsPage>("home");
   const overrides = getOverrides();
+  const loggedMessages = getLoggedMessages();
 
   const openPage = (nextPage: SettingsPage) => {
     setPage(nextPage);
@@ -126,10 +148,7 @@ export default () => {
   };
 
   const addOverride = () => {
-    storage.overrides = [
-      ...overrides,
-      { userId: "", imageUrl: "", displayName: "" },
-    ];
+    storage.overrides = [...overrides, { userId: "", imageUrl: "" }];
 
     requestAnimationFrame(() =>
       scrollRef.current?.scrollToEnd?.({ animated: true }),
@@ -167,21 +186,28 @@ export default () => {
             </ReactNative.View>
             <FormDivider />
             <FormRow
-              label="Avatar & name overrides"
+              label="Avatar overrides"
               subLabel="Open the overrides settings"
               onPress={() => openPage("overrides")}
             />
             <FormDivider />
             <FormRow
-              label="More tweaks coming soon"
-              subLabel="This plugin is now set up as a multi-feature hub"
+              label="Message logger"
+              subLabel={`Saved deleted messages: ${loggedMessages.length}`}
+              onPress={() => openPage("messageLogger")}
             />
+            <ReactNative.View style={styles.sectionText}>
+              <ReactNative.Text style={styles.sectionTextValue}>
+                Tries to keep deleted messages visible and restore them after
+                reload.
+              </ReactNative.Text>
+            </ReactNative.View>
           </>
-        ) : (
+        ) : page === "overrides" ? (
           <>
             <FormRow
-              label="Avatar & name overrides"
-              subLabel="Override avatars and optional display names for selected users"
+              label="Avatar overrides"
+              subLabel="Override avatars for selected users"
             />
             <ReactNative.View style={styles.rowActions}>
               <ReactNative.Pressable onPress={() => openPage("home")}>
@@ -218,13 +244,7 @@ export default () => {
                     updateOverride(index, { imageUrl: value })
                   }
                 />
-                <FormInput
-                  placeholder="Enter override display name"
-                  value={override.displayName || ""}
-                  onChange={(value) =>
-                    updateOverride(index, { displayName: value })
-                  }
-                />
+
                 <ReactNative.View style={styles.rowActions}>
                   <ReactNative.View />
                   <ReactNative.Pressable onPress={() => removeOverride(index)}>
@@ -238,6 +258,63 @@ export default () => {
                 <FormDivider />
               </ReactNative.View>
             ))}
+          </>
+        ) : (
+          <>
+            <FormRow
+              label="Message logger"
+              subLabel="Keep deleted messages saved inside the plugin and restore them after reload"
+            />
+            <FormSwitchRow
+              label="Enable message logger"
+              value={isMessageLoggerEnabled()}
+              onValueChange={(value) =>
+                void (storage.messageLoggerEnabled = value)
+              }
+            />
+            <FormDivider />
+            <ReactNative.View style={styles.rowActions}>
+              <ReactNative.Pressable onPress={() => openPage("home")}>
+                <ReactNative.Text style={[styles.actionText, styles.backText]}>
+                  Back
+                </ReactNative.Text>
+              </ReactNative.Pressable>
+              <ReactNative.Pressable
+                onPress={() => void (storage.loggedMessages = [])}
+              >
+                <ReactNative.Text
+                  style={[styles.actionText, styles.removeText]}
+                >
+                  Clear log
+                </ReactNative.Text>
+              </ReactNative.Pressable>
+            </ReactNative.View>
+            <FormDivider />
+            {loggedMessages.length === 0 ? (
+              <ReactNative.View style={styles.emptyState}>
+                <ReactNative.Text style={styles.emptyStateText}>
+                  No deleted messages saved yet.
+                </ReactNative.Text>
+              </ReactNative.View>
+            ) : (
+              loggedMessages.map((entry, index) => (
+                <ReactNative.View key={`logged-message-${entry.id}-${index}`}>
+                  <FormRow
+                    label={entry.message?.author?.username || "Unknown author"}
+                    subLabel={entry.message?.content || "[No text content]"}
+                  />
+                  <ReactNative.View style={styles.sectionText}>
+                    <ReactNative.Text style={styles.sectionTextValue}>
+                      Channel: {entry.channelId}
+                    </ReactNative.Text>
+                    <ReactNative.Text style={styles.sectionTextValue}>
+                      Deleted: {new Date(entry.deletedAt).toLocaleString()}
+                    </ReactNative.Text>
+                  </ReactNative.View>
+                  <FormDivider />
+                </ReactNative.View>
+              ))
+            )}
           </>
         )}
       </ReactNative.ScrollView>

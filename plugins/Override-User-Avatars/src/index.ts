@@ -1,15 +1,34 @@
-import { findByProps, findByStoreName } from "@vendetta/metro";
-import { FluxDispatcher } from "@vendetta/metro/common";
+import { findByName, findByProps, findByStoreName } from "@vendetta/metro";
+import { FluxDispatcher, ReactNative } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
+import { after, before, instead } from "@vendetta/patcher";
 
-// tag added to all print statements to help with debugging with logcat on adb
 const TAG = "[custom-avatars]";
+const RUNTIME_CACHE_LIMIT = 500;
+const LOGGED_MESSAGES_LIMIT = 250;
 
 type AvatarOverride = {
   userId?: string;
   imageUrl?: string;
-  displayName?: string;
 };
+
+type LoggedMessage = {
+  id: string;
+  channelId: string;
+  deletedAt: number;
+  message: any;
+};
+
+const ChannelMessages = findByProps("_channelMessages");
+const MessageRecordUtils = findByProps(
+  "updateMessageRecord",
+  "createMessageRecord",
+);
+const MessageRecord = findByName("MessageRecord", false);
+const RowManager = findByName("RowManager");
+
+const runtimeMessageCache = new Map<string, any>();
+const runtimeMessageCacheOrder: string[] = [];
 
 let patches = [];
 
@@ -32,9 +51,9 @@ function getOverrides(): AvatarOverride[] {
   return storage.overrides;
 }
 
-function getOverride(
+function getOverrideUrl(
   target: { id?: string } | string | undefined,
-): AvatarOverride | null {
+): string | null {
   const userId = typeof target === "string" ? target : target?.id;
   if (!userId) {
     return null;
@@ -42,35 +61,263 @@ function getOverride(
 
   for (const override of getOverrides()) {
     const overrideUserId = override?.userId?.trim();
-    if (overrideUserId === userId) {
-      return override;
+    const overrideImageUrl = override?.imageUrl?.trim();
+    if (overrideUserId === userId && overrideImageUrl) {
+      return overrideImageUrl;
     }
   }
 
   return null;
 }
 
-function getOverrideUrl(
-  target: { id?: string } | string | undefined,
-): string | null {
-  return getOverride(target)?.imageUrl?.trim() || null;
-}
-
-function applyUserOverride<
-  T extends { username?: string; globalName?: string; displayName?: string },
->(user: T, override: AvatarOverride | null): T {
-  const overrideName = override?.displayName?.trim();
-  if (!overrideName) {
-    return user;
+function getLoggedMessages(): LoggedMessage[] {
+  if (!Array.isArray(storage.loggedMessages)) {
+    storage.loggedMessages = [];
   }
 
-  const clone = Object.assign(Object.create(Object.getPrototypeOf(user)), user);
+  return storage.loggedMessages;
+}
 
-  clone.username = overrideName;
-  clone.globalName = overrideName;
-  clone.displayName = overrideName;
+function isMessageLoggerEnabled(): boolean {
+  if (typeof storage.messageLoggerEnabled !== "boolean") {
+    storage.messageLoggerEnabled = true;
+  }
 
-  return clone;
+  return storage.messageLoggerEnabled;
+}
+
+function getMessageCacheKey(
+  channelId?: string,
+  messageId?: string,
+): string | null {
+  if (!channelId || !messageId) {
+    return null;
+  }
+
+  return `${channelId}:${messageId}`;
+}
+
+function cloneMessage(message: any): any {
+  if (!message) {
+    return message;
+  }
+
+  return typeof message.toJS === "function" ? message.toJS() : { ...message };
+}
+
+function cacheRuntimeMessage(message: any): void {
+  const serializedMessage = cloneMessage(message);
+  const key = getMessageCacheKey(
+    serializedMessage?.channel_id,
+    serializedMessage?.id,
+  );
+  if (!key) {
+    return;
+  }
+
+  runtimeMessageCache.set(key, serializedMessage);
+
+  const existingIndex = runtimeMessageCacheOrder.indexOf(key);
+  if (existingIndex !== -1) {
+    runtimeMessageCacheOrder.splice(existingIndex, 1);
+  }
+  runtimeMessageCacheOrder.push(key);
+
+  while (runtimeMessageCacheOrder.length > RUNTIME_CACHE_LIMIT) {
+    const oldestKey = runtimeMessageCacheOrder.shift();
+    if (oldestKey) {
+      runtimeMessageCache.delete(oldestKey);
+    }
+  }
+}
+
+function getCachedRuntimeMessage(
+  channelId?: string,
+  messageId?: string,
+): any | null {
+  const key = getMessageCacheKey(channelId, messageId);
+  if (!key) {
+    return null;
+  }
+
+  return runtimeMessageCache.get(key) || null;
+}
+
+function findLoggedMessage(
+  channelId?: string,
+  messageId?: string,
+): LoggedMessage | null {
+  if (!channelId || !messageId) {
+    return null;
+  }
+
+  return (
+    getLoggedMessages().find(
+      (entry) => entry.channelId === channelId && entry.id === messageId,
+    ) || null
+  );
+}
+
+function getChannelCachedMessage(
+  channelId?: string,
+  messageId?: string,
+): any | null {
+  if (!channelId || !messageId) {
+    return null;
+  }
+
+  return ChannelMessages?.get?.(channelId)?.get?.(messageId) || null;
+}
+
+function getMessageForLogging(
+  channelId?: string,
+  messageId?: string,
+): any | null {
+  return (
+    getChannelCachedMessage(channelId, messageId) ||
+    getCachedRuntimeMessage(channelId, messageId) ||
+    findLoggedMessage(channelId, messageId)?.message ||
+    null
+  );
+}
+
+function markMessageAsDeleted(message: any): any {
+  const serializedMessage = cloneMessage(message);
+  return {
+    ...serializedMessage,
+    deleted: true,
+    __toolkit_deleted: true,
+    deletedTimestamp:
+      serializedMessage?.deletedTimestamp || new Date().toISOString(),
+  };
+}
+
+function saveLoggedMessage(message: any): void {
+  const serializedMessage = markMessageAsDeleted(message);
+  const messageId = serializedMessage?.id;
+  const channelId = serializedMessage?.channel_id;
+  if (!messageId || !channelId) {
+    return;
+  }
+
+  const entry: LoggedMessage = {
+    id: messageId,
+    channelId,
+    deletedAt: Date.now(),
+    message: serializedMessage,
+  };
+
+  storage.loggedMessages = [
+    entry,
+    ...getLoggedMessages().filter(
+      (loggedMessage) =>
+        !(
+          loggedMessage.id === messageId &&
+          loggedMessage.channelId === channelId
+        ),
+    ),
+  ].slice(0, LOGGED_MESSAGES_LIMIT);
+
+  cacheRuntimeMessage(serializedMessage);
+}
+
+function mergeMessageUpdateIntoCache(partialMessage: any): void {
+  const channelId = partialMessage?.channel_id;
+  const messageId = partialMessage?.id;
+  if (!channelId || !messageId) {
+    return;
+  }
+
+  const cachedMessage = getCachedRuntimeMessage(channelId, messageId) || {};
+  cacheRuntimeMessage({
+    ...cachedMessage,
+    ...cloneMessage(partialMessage),
+  });
+}
+
+function getMessagesFromLoadEvent(event: any): any[] | null {
+  if (Array.isArray(event?.messages)) {
+    return event.messages;
+  }
+
+  if (Array.isArray(event?.body)) {
+    return event.body;
+  }
+
+  return null;
+}
+
+function getLoadEventChannelId(event: any, messages: any[]): string | null {
+  return (
+    event?.channelId || event?.channel_id || messages?.[0]?.channel_id || null
+  );
+}
+
+function getTimestampValue(timestamp: any): number {
+  const parsed = new Date(timestamp).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function mergeDeletedMessagesIntoLoad(event: any): any {
+  const messages = getMessagesFromLoadEvent(event);
+  if (!messages || messages.length === 0) {
+    return event;
+  }
+
+  const channelId = getLoadEventChannelId(event, messages);
+  if (!channelId) {
+    return event;
+  }
+
+  const existingIds = new Set(
+    messages.map((message) => message?.id).filter(Boolean),
+  );
+  const timestamps = messages
+    .map((message) => getTimestampValue(message?.timestamp))
+    .filter((timestamp) => timestamp > 0);
+
+  const minTimestamp = timestamps.length > 0 ? Math.min(...timestamps) : 0;
+  const maxTimestamp =
+    timestamps.length > 0 ? Math.max(...timestamps) : Number.MAX_SAFE_INTEGER;
+
+  const deletedMessagesForRange = getLoggedMessages()
+    .filter((entry) => entry.channelId === channelId)
+    .map((entry) => entry.message)
+    .filter((message) => !existingIds.has(message?.id))
+    .filter((message) => {
+      const timestamp = getTimestampValue(message?.timestamp);
+      if (!timestamp) {
+        return false;
+      }
+
+      return timestamp >= minTimestamp && timestamp <= maxTimestamp;
+    });
+
+  if (deletedMessagesForRange.length === 0) {
+    return event;
+  }
+
+  const firstTimestamp = getTimestampValue(messages[0]?.timestamp);
+  const lastTimestamp = getTimestampValue(
+    messages[messages.length - 1]?.timestamp,
+  );
+  const isAscending = firstTimestamp <= lastTimestamp;
+
+  const mergedMessages = [...messages, ...deletedMessagesForRange].sort(
+    (left, right) => {
+      const leftTimestamp = getTimestampValue(left?.timestamp);
+      const rightTimestamp = getTimestampValue(right?.timestamp);
+      return isAscending
+        ? leftTimestamp - rightTimestamp
+        : rightTimestamp - leftTimestamp;
+    },
+  );
+
+  return {
+    ...event,
+    messages: Array.isArray(event?.messages) ? mergedMessages : event?.messages,
+    body: Array.isArray(event?.body) ? mergedMessages : event?.body,
+  };
 }
 
 function refreshUsers(
@@ -102,6 +349,180 @@ function getAffectedUserIds(): string[] {
     .filter(Boolean);
 }
 
+function setupMessageLogger(): void {
+  if (!isMessageLoggerEnabled()) {
+    return;
+  }
+
+  if (
+    !ChannelMessages ||
+    !MessageRecordUtils ||
+    !MessageRecord ||
+    !RowManager
+  ) {
+    console.log(`${TAG} message logger modules not found`);
+    return;
+  }
+
+  patches.push(
+    before("dispatch", FluxDispatcher, ([event]) => {
+      if (!event?.type) {
+        return;
+      }
+
+      try {
+        if (event.type === "MESSAGE_CREATE") {
+          cacheRuntimeMessage(event.message);
+          return [event];
+        }
+
+        if (event.type === "MESSAGE_UPDATE") {
+          mergeMessageUpdateIntoCache(event.message);
+          return [event];
+        }
+
+        if (event.type === "LOAD_MESSAGES_SUCCESS") {
+          const nextEvent = mergeDeletedMessagesIntoLoad(event);
+          const loadedMessages = getMessagesFromLoadEvent(nextEvent) || [];
+          loadedMessages.forEach(cacheRuntimeMessage);
+          return [nextEvent];
+        }
+
+        if (event.type === "MESSAGE_DELETE_BULK") {
+          for (const messageId of event.ids || []) {
+            const message = getMessageForLogging(event.channelId, messageId);
+            if (message) {
+              saveLoggedMessage(message);
+            }
+          }
+
+          return [event];
+        }
+
+        if (event.type !== "MESSAGE_DELETE") {
+          return [event];
+        }
+
+        if (event.__toolkit_cleanup) {
+          return [event];
+        }
+
+        const message = getMessageForLogging(event.channelId, event.id);
+        if (!message) {
+          return [event];
+        }
+
+        if (message.author?.id === "1") {
+          return [event];
+        }
+
+        if (message.state === "SEND_FAILED") {
+          return [event];
+        }
+
+        const deletedMessage = markMessageAsDeleted(message);
+        saveLoggedMessage(deletedMessage);
+
+        return [
+          {
+            ...event,
+            type: "MESSAGE_UPDATE",
+            message: deletedMessage,
+          },
+        ];
+      } catch (error) {
+        console.log(
+          `${TAG} message logger hook failed`,
+          error?.message ?? error,
+        );
+        return [event];
+      }
+    }),
+  );
+
+  patches.push(
+    after("generate", RowManager.prototype, ([data], row) => {
+      if (data?.rowType !== 1) {
+        return;
+      }
+
+      if (data?.message?.__toolkit_deleted) {
+        row.message.edited = "deleted";
+        row.backgroundHighlight ??= {};
+        row.backgroundHighlight.backgroundColor =
+          ReactNative.processColor("#da373c22");
+        row.backgroundHighlight.gutterColor =
+          ReactNative.processColor("#da373cff");
+      }
+    }),
+  );
+
+  patches.push(
+    instead(
+      "updateMessageRecord",
+      MessageRecordUtils,
+      function ([oldRecord, newRecord], original) {
+        if (newRecord?.__toolkit_deleted) {
+          return MessageRecordUtils.createMessageRecord(
+            newRecord,
+            oldRecord?.reactions,
+          );
+        }
+
+        return original.apply(this, [oldRecord, newRecord]);
+      },
+    ),
+  );
+
+  patches.push(
+    after(
+      "createMessageRecord",
+      MessageRecordUtils,
+      function ([message], record) {
+        record.__toolkit_deleted = !!message?.__toolkit_deleted;
+      },
+    ),
+  );
+
+  patches.push(
+    after("default", MessageRecord, ([props], record) => {
+      record.__toolkit_deleted = !!props?.__toolkit_deleted;
+    }),
+  );
+}
+
+function cleanupMessageLogger(): void {
+  if (!ChannelMessages?._channelMessages) {
+    return;
+  }
+
+  try {
+    for (const channelId in ChannelMessages._channelMessages) {
+      const channel = ChannelMessages._channelMessages[channelId];
+      for (const message of channel?._array ?? []) {
+        if (!message?.__toolkit_deleted) {
+          continue;
+        }
+
+        FluxDispatcher.dispatch({
+          type: "MESSAGE_DELETE",
+          id: message.id,
+          channelId: message.channel_id,
+          __toolkit_cleanup: true,
+        });
+      }
+    }
+  } catch (error) {
+    console.log(
+      `${TAG} message logger cleanup failed`,
+      error?.message ?? error,
+    );
+  }
+
+  runtimeMessageCache.clear();
+  runtimeMessageCacheOrder.length = 0;
+}
+
 export function onLoad(): void {
   console.log(`${TAG} loaded`);
 
@@ -117,20 +538,8 @@ export function onLoad(): void {
     return;
   }
 
-  const originalGetUser = UserStore.getUser;
-  UserStore.getUser = function (...args) {
-    const user = originalGetUser.apply(this, args);
-    if (!user) {
-      return user;
-    }
+  setupMessageLogger();
 
-    return applyUserOverride(user, getOverride(args[0]));
-  };
-  patches.push(() => {
-    UserStore.getUser = originalGetUser;
-  });
-
-  // patch getUserAvatarSource, overrides avatar in DMs and group chats
   if (avatarModule.getUserAvatarSource) {
     const originalGetUserAvatarSource = avatarModule.getUserAvatarSource;
     avatarModule.getUserAvatarSource = function (...args) {
@@ -151,7 +560,6 @@ export function onLoad(): void {
     });
   }
 
-  // patch getUserAvatarURL, overrides avatar in voice calls
   const originalGetUserAvatarURL = avatarModule.getUserAvatarURL;
   avatarModule.getUserAvatarURL = function (...args) {
     const overrideUrl = getOverrideUrl(args[0]);
@@ -181,9 +589,10 @@ export function onUnload(): void {
   const UserStore = findByStoreName("UserStore");
   const affectedUserIds = getAffectedUserIds();
 
-  // restore patches
   patches.forEach((unpatch) => unpatch());
   patches = [];
+
+  cleanupMessageLogger();
 
   try {
     refreshUsers(UserStore, affectedUserIds);
