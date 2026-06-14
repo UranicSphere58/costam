@@ -1,31 +1,37 @@
 {
-    "name": "Dark Vendetta Blue Mentions",
-    "description": "Dark Vendetta with blue mention background",
-    "authors": [
-        {
-            "name": "ignacio",
-            "id": "811581067940855888"
-        },
-        {
-            "name": "Kitomanari",
-            "id": "437154602626973697"
-        }
-    ],
-    "spec": 2,
-    "semanticColors": {
-        "BACKGROUND_MENTIONED": ["#5865F240"],
-        "BACKGROUND_MENTIONED_HOVER": ["#5865F260"]
+  "name": "Dark Vendetta Blue Mentions",
+  "description": "Dark Vendetta with proper blue mention background fix",
+  "authors": [
+    {
+      "name": "ignacio",
+      "id": "811581067940855888"
     },
-    "rawColors": {
-        "PLUM_13": "#181818",
-        "PLUM_15": "#181818",
-        "PLUM_16": "#181818",
-        "PLUM_17": "#141414",
-        "PLUM_18": "#141414",
-        "PLUM_19": "#181818",
-        "PLUM_20": "#121212",
-        "PLUM_22": "#121212",
-        "PLUM_23": "#181818",
-        "YELLOW_300": "#007bff"
+    {
+      "name": "Kitomanari",
+      "id": "437154602626973697"
     }
+  ],
+  "spec": 2,
+
+  "semanticColors": {
+    "BACKGROUND_MENTIONED": ["#5865F240"],
+    "BACKGROUND_MENTIONED_HOVER": ["#5865F260"],
+
+    "BACKGROUND_MODIFIER_SELECTED": ["#5865F240"],
+    "BACKGROUND_MODIFIER_ACTIVE": ["#5865F260"],
+    "BACKGROUND_MODIFIER_HOVER": ["#5865F220"]
+  },
+
+  "rawColors": {
+    "PLUM_13": "#181818",
+    "PLUM_15": "#181818",
+    "PLUM_16": "#181818",
+    "PLUM_17": "#141414",
+    "PLUM_18": "#141414",
+    "PLUM_19": "#181818",
+    "PLUM_20": "#121212",
+    "PLUM_22": "#121212",
+    "PLUM_23": "#181818",
+    "YELLOW_300": "#007bff"
+  }
 }
