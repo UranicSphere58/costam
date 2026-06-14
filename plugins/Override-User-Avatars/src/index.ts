@@ -307,80 +307,6 @@ function mergeMessageUpdateIntoCache(partialMessage: any): void {
   });
 }
 
-function upsertMessageInArray(messages: any[], message: any): void {
-  const index = messages.findIndex((entry) => entry?.id === message?.id);
-  if (index !== -1) {
-    messages[index] = message;
-    return;
-  }
-
-  const timestamp = getTimestampValue(message?.timestamp);
-  let insertIndex = messages.findIndex(
-    (entry) => getTimestampValue(entry?.timestamp) > timestamp,
-  );
-  if (insertIndex === -1) {
-    insertIndex = messages.length;
-  }
-
-  messages.splice(insertIndex, 0, message);
-}
-
-function restoreOriginalInChannelCache(
-  channelId: string,
-  replacementId: string,
-  originalMessage: any,
-): void {
-  const channelCache =
-    ChannelMessages?.get?.(channelId) ||
-    ChannelMessages?._channelMessages?.[channelId];
-  if (!channelCache) {
-    return;
-  }
-
-  const sanitizedOriginalMessage = sanitizeMessageForLogger(originalMessage);
-
-  const maybeCollections = Object.values(channelCache);
-  for (const collection of maybeCollections) {
-    if (!collection) {
-      continue;
-    }
-
-    if (Array.isArray(collection)) {
-      for (let index = collection.length - 1; index >= 0; index -= 1) {
-        if (collection[index]?.id === replacementId) {
-          collection.splice(index, 1);
-        }
-      }
-
-      if (collection.some((entry) => entry?.id && entry?.timestamp)) {
-        upsertMessageInArray(collection, sanitizedOriginalMessage);
-      }
-      continue;
-    }
-
-    if (collection instanceof Map) {
-      collection.delete(replacementId);
-      collection.set(sanitizedOriginalMessage.id, sanitizedOriginalMessage);
-      continue;
-    }
-
-    if (typeof collection === "object") {
-      if (replacementId in collection) {
-        delete collection[replacementId];
-      }
-
-      if (
-        sanitizedOriginalMessage.id in collection ||
-        collection === channelCache
-      ) {
-        collection[sanitizedOriginalMessage.id] = sanitizedOriginalMessage;
-      }
-    }
-  }
-
-  cacheRuntimeMessage(sanitizedOriginalMessage);
-}
-
 function getCurrentChannelId(): string | null {
   return SelectedChannelStore?.getChannelId?.() || null;
 }
@@ -506,29 +432,6 @@ function detectSilentReplacement(
     originalId,
     originalMessage: sanitizeMessageForLogger(originalMessage),
   };
-}
-
-function getRenderableMessage(message: any, event?: any): any {
-  const silentReplacement = detectSilentReplacement(message, event);
-  if (!silentReplacement) {
-    return message;
-  }
-
-  silentReplacementMap.set(
-    silentReplacement.replacementId,
-    silentReplacement.originalId,
-  );
-
-  const restoredOriginalMessage = {
-    ...silentReplacement.originalMessage,
-    id: silentReplacement.originalId,
-    channel_id: message?.channel_id,
-    nonce: `toolkit-restored-${silentReplacement.originalId}`,
-    __toolkit_restored_original: true,
-  };
-
-  cacheRuntimeMessage(restoredOriginalMessage);
-  return restoredOriginalMessage;
 }
 
 function getMessagesFromLoadEvent(event: any): any[] | null {
@@ -668,17 +571,40 @@ function setupMessageLogger(): void {
 
       try {
         if (event.type === "MESSAGE_CREATE") {
-          const renderableMessage = getRenderableMessage(event.message, event);
-          if (!event.optimistic && renderableMessage?.state !== "SENDING") {
-            cacheRuntimeMessage(renderableMessage);
+          const silentReplacement = detectSilentReplacement(
+            event.message,
+            event,
+          );
+          if (silentReplacement) {
+            silentReplacementMap.set(
+              silentReplacement.replacementId,
+              silentReplacement.originalId,
+            );
+
+            cacheRuntimeMessage(silentReplacement.originalMessage);
+
+            return [
+              {
+                type: "MESSAGE_UPDATE",
+                message: {
+                  ...silentReplacement.originalMessage,
+                  id: silentReplacement.originalId,
+                  channel_id: event.message?.channel_id,
+                  __toolkit_restored_original: true,
+                },
+              },
+            ];
+          }
+
+          if (!event.optimistic && event.message?.state !== "SENDING") {
+            cacheRuntimeMessage(event.message);
           }
           return;
         }
 
         if (event.type === "MESSAGE_UPDATE") {
-          const renderableMessage = getRenderableMessage(event.message, event);
-          if (renderableMessage?.state !== "SENDING") {
-            mergeMessageUpdateIntoCache(renderableMessage);
+          if (event.message?.state !== "SENDING") {
+            mergeMessageUpdateIntoCache(event.message);
           }
           return;
         }
@@ -780,28 +706,24 @@ function setupMessageLogger(): void {
       "updateMessageRecord",
       MessageRecordUtils,
       function ([oldRecord, newRecord], original) {
-        const renderableMessage = getRenderableMessage(newRecord);
-        if (renderableMessage?.__toolkit_deleted) {
+        if (newRecord?.__toolkit_deleted) {
           return MessageRecordUtils.createMessageRecord(
-            renderableMessage,
+            newRecord,
             oldRecord?.reactions,
           );
         }
 
-        return original.apply(this, [oldRecord, renderableMessage]);
+        return original.apply(this, [oldRecord, newRecord]);
       },
     ),
   );
 
   patches.push(
-    instead(
+    after(
       "createMessageRecord",
       MessageRecordUtils,
-      function ([message, reactions], original) {
-        const renderableMessage = getRenderableMessage(message);
-        const record = original.apply(this, [renderableMessage, reactions]);
-        record.__toolkit_deleted = !!renderableMessage?.__toolkit_deleted;
-        return record;
+      function ([message], record) {
+        record.__toolkit_deleted = !!message?.__toolkit_deleted;
       },
     ),
   );
