@@ -307,6 +307,80 @@ function mergeMessageUpdateIntoCache(partialMessage: any): void {
   });
 }
 
+function upsertMessageInArray(messages: any[], message: any): void {
+  const index = messages.findIndex((entry) => entry?.id === message?.id);
+  if (index !== -1) {
+    messages[index] = message;
+    return;
+  }
+
+  const timestamp = getTimestampValue(message?.timestamp);
+  let insertIndex = messages.findIndex(
+    (entry) => getTimestampValue(entry?.timestamp) > timestamp,
+  );
+  if (insertIndex === -1) {
+    insertIndex = messages.length;
+  }
+
+  messages.splice(insertIndex, 0, message);
+}
+
+function restoreOriginalInChannelCache(
+  channelId: string,
+  replacementId: string,
+  originalMessage: any,
+): void {
+  const channelCache =
+    ChannelMessages?.get?.(channelId) ||
+    ChannelMessages?._channelMessages?.[channelId];
+  if (!channelCache) {
+    return;
+  }
+
+  const sanitizedOriginalMessage = sanitizeMessageForLogger(originalMessage);
+
+  const maybeCollections = Object.values(channelCache);
+  for (const collection of maybeCollections) {
+    if (!collection) {
+      continue;
+    }
+
+    if (Array.isArray(collection)) {
+      for (let index = collection.length - 1; index >= 0; index -= 1) {
+        if (collection[index]?.id === replacementId) {
+          collection.splice(index, 1);
+        }
+      }
+
+      if (collection.some((entry) => entry?.id && entry?.timestamp)) {
+        upsertMessageInArray(collection, sanitizedOriginalMessage);
+      }
+      continue;
+    }
+
+    if (collection instanceof Map) {
+      collection.delete(replacementId);
+      collection.set(sanitizedOriginalMessage.id, sanitizedOriginalMessage);
+      continue;
+    }
+
+    if (typeof collection === "object") {
+      if (replacementId in collection) {
+        delete collection[replacementId];
+      }
+
+      if (
+        sanitizedOriginalMessage.id in collection ||
+        collection === channelCache
+      ) {
+        collection[sanitizedOriginalMessage.id] = sanitizedOriginalMessage;
+      }
+    }
+  }
+
+  cacheRuntimeMessage(sanitizedOriginalMessage);
+}
+
 function getCurrentChannelId(): string | null {
   return SelectedChannelStore?.getChannelId?.() || null;
 }
@@ -585,6 +659,17 @@ function setupMessageLogger(): void {
 
             setTimeout(() => {
               try {
+                restoreOriginalInChannelCache(
+                  event.message?.channel_id,
+                  silentReplacement.replacementId,
+                  {
+                    ...silentReplacement.originalMessage,
+                    id: silentReplacement.originalId,
+                    channel_id: event.message?.channel_id,
+                    __toolkit_restored_original: true,
+                  },
+                );
+
                 FluxDispatcher.dispatch({
                   type: "MESSAGE_DELETE",
                   id: silentReplacement.replacementId,
