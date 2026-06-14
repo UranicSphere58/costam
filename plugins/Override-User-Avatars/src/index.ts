@@ -64,12 +64,13 @@ function applyUserOverride<
     return user;
   }
 
-  return {
-    ...user,
-    username: overrideName,
-    globalName: overrideName,
-    displayName: overrideName,
-  };
+  const clone = Object.assign(Object.create(Object.getPrototypeOf(user)), user);
+
+  clone.username = overrideName;
+  clone.globalName = overrideName;
+  clone.displayName = overrideName;
+
+  return clone;
 }
 
 function refreshUsers(

@@ -1,12 +1,12 @@
 {
-  "name": "BetterOverride User Avatars",
-  "description": "Allows you to set a custom profile picture for any Discord user.",
+  "name": "Uranic Toolkit",
+  "description": "A collection of personal Revenge tweaks made by Uranic.",
   "authors": [
     {
       "name": "𝚄𝚛𝚊𝚗𝚒𝚌",
       "id": "1280185233878286448"
     }
   ],
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "src/index.ts"
 }
