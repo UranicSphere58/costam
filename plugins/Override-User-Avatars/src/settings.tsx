@@ -209,7 +209,7 @@ export default () => {
             <FormDivider />
             <FormRow
               label="Message logger"
-              subLabel="Restore deleted messages in chat after reload"
+              subLabel="Keep deleted messages visible more reliably"
               onPress={() => openPage("messageLogger")}
             />
           </>
@@ -273,7 +273,7 @@ export default () => {
           <>
             <FormRow
               label="Message logger"
-              subLabel="Restore deleted messages in chat after reload"
+              subLabel="Keep deleted messages visible more reliably"
             />
             <FormSwitchRow
               label="Enable message logger"

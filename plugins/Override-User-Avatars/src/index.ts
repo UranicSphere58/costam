@@ -143,8 +143,42 @@ function cloneMessage(message: any): any {
   return typeof message.toJS === "function" ? message.toJS() : { ...message };
 }
 
-function cacheRuntimeMessage(message: any): void {
+function sanitizeMessageForLogger(message: any): any {
   const serializedMessage = cloneMessage(message);
+  if (!serializedMessage) {
+    return serializedMessage;
+  }
+
+  const sanitizedMessage = {
+    ...serializedMessage,
+    attachments: Array.isArray(serializedMessage.attachments)
+      ? serializedMessage.attachments.map((attachment: any) => ({
+          ...attachment,
+        }))
+      : [],
+    embeds: Array.isArray(serializedMessage.embeds)
+      ? serializedMessage.embeds.map((embed: any) => ({ ...embed }))
+      : [],
+    mentions: Array.isArray(serializedMessage.mentions)
+      ? serializedMessage.mentions.map((mention: any) => ({ ...mention }))
+      : [],
+    content: serializedMessage.content ?? "",
+  };
+
+  delete sanitizedMessage.state;
+  delete sanitizedMessage.error;
+  delete sanitizedMessage.local;
+  delete sanitizedMessage.optimistic;
+  delete sanitizedMessage.pending;
+  delete sanitizedMessage.failed;
+  delete sanitizedMessage.responseState;
+  delete sanitizedMessage.__toolkit_silent_replacement;
+
+  return sanitizedMessage;
+}
+
+function cacheRuntimeMessage(message: any): void {
+  const serializedMessage = sanitizeMessageForLogger(message);
   const key = getMessageCacheKey(
     serializedMessage?.channel_id,
     serializedMessage?.id,
@@ -220,7 +254,7 @@ function getMessageForLogging(
 }
 
 function markMessageAsDeleted(message: any): any {
-  const serializedMessage = cloneMessage(message);
+  const serializedMessage = sanitizeMessageForLogger(message);
   return {
     ...serializedMessage,
     deleted: true,
@@ -269,7 +303,7 @@ function mergeMessageUpdateIntoCache(partialMessage: any): void {
   const cachedMessage = getCachedRuntimeMessage(channelId, messageId) || {};
   cacheRuntimeMessage({
     ...cachedMessage,
-    ...cloneMessage(partialMessage),
+    ...sanitizeMessageForLogger(partialMessage),
   });
 }
 
@@ -514,12 +548,8 @@ function setupMessageLogger(): void {
 
             return [
               {
-                ...event,
-                message: {
-                  ...cloneMessage(event.message),
-                  nonce: `toolkit-${silentReplacement.originalId}`,
-                  __toolkit_silent_replacement: true,
-                },
+                type: "__TOOLKIT_IGNORE",
+                __toolkit_silent_replacement: true,
               },
             ];
           }
@@ -534,10 +564,9 @@ function setupMessageLogger(): void {
         }
 
         if (event.type === "LOAD_MESSAGES_SUCCESS") {
-          const nextEvent = mergeDeletedMessagesIntoLoad(event);
-          const loadedMessages = getMessagesFromLoadEvent(nextEvent) || [];
+          const loadedMessages = getMessagesFromLoadEvent(event) || [];
           loadedMessages.forEach(cacheRuntimeMessage);
-          return [nextEvent];
+          return [event];
         }
 
         if (event.type === "MESSAGE_DELETE_BULK") {
