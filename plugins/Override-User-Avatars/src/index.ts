@@ -385,7 +385,7 @@ function isLikelySilentPlaceholder(message: any): boolean {
 function detectSilentReplacement(
   message: any,
   event?: any,
-): { replacementId: string; originalId: string } | null {
+): { replacementId: string; originalId: string; originalMessage: any } | null {
   if (!shouldRevealSilentDeletes()) {
     return null;
   }
@@ -427,7 +427,11 @@ function detectSilentReplacement(
     return null;
   }
 
-  return { replacementId, originalId };
+  return {
+    replacementId,
+    originalId,
+    originalMessage: sanitizeMessageForLogger(originalMessage),
+  };
 }
 
 function getMessagesFromLoadEvent(event: any): any[] | null {
@@ -577,16 +581,16 @@ function setupMessageLogger(): void {
               silentReplacement.originalId,
             );
 
+            cacheRuntimeMessage(silentReplacement.originalMessage);
+
             return [
               {
-                ...event,
+                type: "MESSAGE_UPDATE",
                 message: {
-                  ...sanitizeMessageForLogger(event.message),
-                  content: "",
-                  attachments: [],
-                  embeds: [],
-                  __toolkit_hidden: true,
-                  __toolkit_silent_replacement: true,
+                  ...silentReplacement.originalMessage,
+                  id: silentReplacement.originalId,
+                  channel_id: event.message?.channel_id,
+                  __toolkit_restored_original: true,
                 },
               },
             ];
