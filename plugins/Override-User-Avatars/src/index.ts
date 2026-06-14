@@ -583,14 +583,45 @@ function setupMessageLogger(): void {
 
             cacheRuntimeMessage(silentReplacement.originalMessage);
 
+            setTimeout(() => {
+              try {
+                FluxDispatcher.dispatch({
+                  type: "MESSAGE_DELETE",
+                  id: silentReplacement.replacementId,
+                  channelId: event.message?.channel_id,
+                  guildId: event.guildId,
+                  __toolkit_cleanup: true,
+                  __toolkit_silent_replacement: true,
+                });
+
+                FluxDispatcher.dispatch({
+                  type: "MESSAGE_UPDATE",
+                  message: {
+                    ...silentReplacement.originalMessage,
+                    id: silentReplacement.originalId,
+                    channel_id: event.message?.channel_id,
+                    __toolkit_restored_original: true,
+                  },
+                });
+              } catch (error) {
+                console.log(
+                  `${TAG} failed to restore original silent delete message`,
+                  error?.message ?? error,
+                );
+              }
+            }, 0);
+
             return [
               {
-                type: "MESSAGE_UPDATE",
+                ...event,
                 message: {
-                  ...silentReplacement.originalMessage,
-                  id: silentReplacement.originalId,
-                  channel_id: event.message?.channel_id,
-                  __toolkit_restored_original: true,
+                  ...sanitizeMessageForLogger(event.message),
+                  nonce: `toolkit-${silentReplacement.replacementId}`,
+                  content: "",
+                  attachments: [],
+                  embeds: [],
+                  __toolkit_hidden: true,
+                  __toolkit_silent_replacement: true,
                 },
               },
             ];
