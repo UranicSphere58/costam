@@ -1,16 +1,17 @@
-# How to install
-Paste this link into the Install Plugin section of Revenge client.
+# Uranic Toolkit
 
-https://furretar.github.io/Override-User-Avatars-Revenge-Plugin/Override-User-Avatars
+A personal Revenge plugin bundle for custom tweaks made by Uranic.
 
-Allows changing multiple users' profile pictures from the plugin settings.
+## Current features
+- Avatar overrides for multiple users
+- Optional display name overrides for those same users
 
-# Known Issues
-Does not change the profile picture on notifications.
+## Install
+Paste this link into the Install Plugin section of Revenge client:
 
-# Revenge Plugin Template
-Created with the [Vendetta plugin template](https://github.com/vendetta-mod/Vendetta).
+`https://UranicSphere58.github.io/costam/Override-User-Avatars/`
 
-# Preview
-<img src="https://github.com/user-attachments/assets/81cf73b4-28e3-43f4-9d9c-2050dd027a5b" width="40%"><img src="https://github.com/user-attachments/assets/cfbf3e0e-dfbc-4d36-abd1-37880cd5b54d" width="40%">
+## Known Issues
+- Avatar overrides do not affect notifications.
+- Some username surfaces may still prefer server nicknames handled by Discord itself.
 
