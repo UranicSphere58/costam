@@ -655,59 +655,20 @@ function setupMessageLogger(): void {
               silentReplacement.originalId,
             );
 
-            cacheRuntimeMessage(silentReplacement.originalMessage);
+            const restoredOriginalMessage = {
+              ...silentReplacement.originalMessage,
+              id: silentReplacement.originalId,
+              channel_id: event.message?.channel_id,
+              nonce: `toolkit-restored-${silentReplacement.originalId}`,
+              __toolkit_restored_original: true,
+            };
 
-            setTimeout(() => {
-              try {
-                restoreOriginalInChannelCache(
-                  event.message?.channel_id,
-                  silentReplacement.replacementId,
-                  {
-                    ...silentReplacement.originalMessage,
-                    id: silentReplacement.originalId,
-                    channel_id: event.message?.channel_id,
-                    __toolkit_restored_original: true,
-                  },
-                );
-
-                FluxDispatcher.dispatch({
-                  type: "MESSAGE_DELETE",
-                  id: silentReplacement.replacementId,
-                  channelId: event.message?.channel_id,
-                  guildId: event.guildId,
-                  __toolkit_cleanup: true,
-                  __toolkit_silent_replacement: true,
-                });
-
-                FluxDispatcher.dispatch({
-                  type: "MESSAGE_UPDATE",
-                  message: {
-                    ...silentReplacement.originalMessage,
-                    id: silentReplacement.originalId,
-                    channel_id: event.message?.channel_id,
-                    __toolkit_restored_original: true,
-                  },
-                });
-              } catch (error) {
-                console.log(
-                  `${TAG} failed to restore original silent delete message`,
-                  error?.message ?? error,
-                );
-              }
-            }, 0);
+            cacheRuntimeMessage(restoredOriginalMessage);
 
             return [
               {
                 ...event,
-                message: {
-                  ...sanitizeMessageForLogger(event.message),
-                  nonce: `toolkit-${silentReplacement.replacementId}`,
-                  content: "",
-                  attachments: [],
-                  embeds: [],
-                  __toolkit_hidden: true,
-                  __toolkit_silent_replacement: true,
-                },
+                message: restoredOriginalMessage,
               },
             ];
           }
