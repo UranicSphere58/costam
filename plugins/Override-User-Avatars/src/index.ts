@@ -484,13 +484,37 @@ function detectSilentReplacement(
 }
 
 function getSilentReplacementOriginal(message: any): any | null {
-  const silentReplacement = detectSilentReplacement(message);
-  if (!silentReplacement) {
+  const channelId = message?.channel_id;
+  const replacementId = message?.id;
+
+  let originalMessage: any | null = null;
+
+  const mappedOriginalId = replacementId
+    ? silentReplacementMap.get(replacementId)
+    : null;
+  if (channelId && mappedOriginalId) {
+    originalMessage = getMessageForLogging(channelId, mappedOriginalId);
+  }
+
+  if (!originalMessage) {
+    const silentReplacement = detectSilentReplacement(message);
+    if (!silentReplacement) {
+      return null;
+    }
+
+    silentReplacementMap.set(
+      silentReplacement.replacementId,
+      silentReplacement.originalId,
+    );
+    originalMessage = silentReplacement.originalMessage;
+  }
+
+  if (!originalMessage) {
     return null;
   }
 
   return normalizeMessageForRender({
-    ...silentReplacement.originalMessage,
+    ...sanitizeMessageForLogger(originalMessage),
     deleted: true,
     __toolkit_deleted: true,
     __toolkit_silent_deleted: true,
@@ -702,6 +726,10 @@ function setupMessageLogger(): void {
 
         const silentDeleteOriginal = getSilentReplacementOriginal(message);
         if (silentDeleteOriginal) {
+          if (event.id && silentDeleteOriginal.id) {
+            silentReplacementMap.set(event.id, silentDeleteOriginal.id);
+          }
+
           if (
             !shouldLogMessage(
               silentDeleteOriginal,
