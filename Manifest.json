@@ -1,0 +1,15 @@
+{
+  "name": "Override User Avatars",
+  "description": "Better Furretar Override User Avatars by 𝚄𝚛𝚊𝚗𝚒𝚌 ",
+  "authors": [
+    {
+        "name": "Furretar",
+        "id": "291303812516544524"
+    }
+    {
+        "name": "𝚄𝚛𝚊𝚗𝚒𝚌",
+        "id": "1280185233878286448"
+],
+  "version": "1.0.0",
+  "main": "src/index.ts"
+}
