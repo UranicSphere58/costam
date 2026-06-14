@@ -367,21 +367,6 @@ function shouldLogMessage(
   return false;
 }
 
-function isLikelySilentPlaceholder(message: any): boolean {
-  const content =
-    typeof message?.content === "string" ? message.content.trim() : "";
-  const hasAttachments =
-    Array.isArray(message?.attachments) && message.attachments.length > 0;
-  const hasEmbeds = Array.isArray(message?.embeds) && message.embeds.length > 0;
-  const suppressNotifications = (message?.flags & 4096) === 4096;
-
-  if (hasAttachments || hasEmbeds) {
-    return false;
-  }
-
-  return content === "" || content === "** **" || suppressNotifications;
-}
-
 function detectSilentReplacement(
   message: any,
   event?: any,
@@ -395,10 +380,6 @@ function detectSilentReplacement(
     message?.optimistic ||
     message?.state === "SENDING"
   ) {
-    return null;
-  }
-
-  if (!isLikelySilentPlaceholder(message)) {
     return null;
   }
 
@@ -427,11 +408,46 @@ function detectSilentReplacement(
     return null;
   }
 
+  if (
+    message?.webhook_id ||
+    message?.message_reference ||
+    message?.referenced_message
+  ) {
+    return null;
+  }
+
   return {
     replacementId,
     originalId,
     originalMessage: sanitizeMessageForLogger(originalMessage),
   };
+}
+
+function getSilentReplacementOriginal(message: any): any | null {
+  const silentReplacement = detectSilentReplacement(message);
+  if (!silentReplacement) {
+    return null;
+  }
+
+  silentReplacementMap.set(
+    silentReplacement.replacementId,
+    silentReplacement.originalId,
+  );
+
+  return {
+    ...silentReplacement.originalMessage,
+    id: silentReplacement.originalId,
+    channel_id: message?.channel_id,
+    __toolkit_restored_original: true,
+  };
+}
+
+function applyOriginalToRenderedRow(row: any, originalMessage: any): void {
+  if (!row?.message || !originalMessage) {
+    return;
+  }
+
+  Object.assign(row.message, originalMessage);
 }
 
 function getMessagesFromLoadEvent(event: any): any[] | null {
@@ -690,7 +706,12 @@ function setupMessageLogger(): void {
         return;
       }
 
-      if (data?.message?.__toolkit_deleted) {
+      const silentDeleteOriginal = getSilentReplacementOriginal(data?.message);
+      if (silentDeleteOriginal) {
+        applyOriginalToRenderedRow(row, silentDeleteOriginal);
+      }
+
+      if (row?.message?.__toolkit_deleted) {
         row.message.edited = "deleted";
         row.backgroundHighlight ??= {};
         row.backgroundHighlight.backgroundColor =
