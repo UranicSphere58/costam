@@ -8,6 +8,7 @@ const TAG = "[custom-avatars]";
 type AvatarOverride = {
   userId?: string;
   imageUrl?: string;
+  displayName?: string;
 };
 
 let patches = [];
@@ -31,26 +32,44 @@ function getOverrides(): AvatarOverride[] {
   return storage.overrides;
 }
 
-function getOverrideUrl(
+function getOverride(
   target: { id?: string } | string | undefined,
-): string | null {
+): AvatarOverride | null {
   const userId = typeof target === "string" ? target : target?.id;
   if (!userId) {
     return null;
   }
 
-  const overrideMap = new Map<string, string>();
   for (const override of getOverrides()) {
     const overrideUserId = override?.userId?.trim();
-    const overrideImageUrl = override?.imageUrl?.trim();
-    if (!overrideUserId || !overrideImageUrl) {
-      continue;
+    if (overrideUserId === userId) {
+      return override;
     }
-
-    overrideMap.set(overrideUserId, overrideImageUrl);
   }
 
-  return overrideMap.get(userId) || null;
+  return null;
+}
+
+function getOverrideUrl(
+  target: { id?: string } | string | undefined,
+): string | null {
+  return getOverride(target)?.imageUrl?.trim() || null;
+}
+
+function applyUserOverride<
+  T extends { username?: string; globalName?: string; displayName?: string },
+>(user: T, override: AvatarOverride | null): T {
+  const overrideName = override?.displayName?.trim();
+  if (!overrideName) {
+    return user;
+  }
+
+  return {
+    ...user,
+    username: overrideName,
+    globalName: overrideName,
+    displayName: overrideName,
+  };
 }
 
 function refreshUsers(
@@ -96,6 +115,19 @@ export function onLoad(): void {
     console.log(`${TAG} avatar module not found`);
     return;
   }
+
+  const originalGetUser = UserStore.getUser;
+  UserStore.getUser = function (...args) {
+    const user = originalGetUser.apply(this, args);
+    if (!user) {
+      return user;
+    }
+
+    return applyUserOverride(user, getOverride(args[0]));
+  };
+  patches.push(() => {
+    UserStore.getUser = originalGetUser;
+  });
 
   // patch getUserAvatarSource, overrides avatar in DMs and group chats
   if (avatarModule.getUserAvatarSource) {

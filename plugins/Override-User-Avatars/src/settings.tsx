@@ -9,6 +9,7 @@ const { FormDivider, FormInput, FormRow } = Forms;
 type AvatarOverride = {
   userId?: string;
   imageUrl?: string;
+  displayName?: string;
 };
 
 const styles = ReactNative.StyleSheet.create({
@@ -107,7 +108,12 @@ export default () => {
   };
 
   return (
-    <ReactNative.ScrollView>
+    <ReactNative.ScrollView
+      nestedScrollEnabled={true}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      contentContainerStyle={{ paddingBottom: 48 }}
+    >
       <FormRow label="Avatar overrides" />
       {overrides.length === 0 ? (
         <ReactNative.View style={styles.emptyState}>
@@ -128,6 +134,11 @@ export default () => {
             placeholder="Enter image URL"
             value={override.imageUrl || ""}
             onChange={(value) => updateOverride(index, { imageUrl: value })}
+          />
+          <FormInput
+            placeholder="Enter override display name"
+            value={override.displayName || ""}
+            onChange={(value) => updateOverride(index, { displayName: value })}
           />
           <ReactNative.View style={styles.rowActions}>
             <ReactNative.Pressable onPress={() => removeOverride(index)}>
