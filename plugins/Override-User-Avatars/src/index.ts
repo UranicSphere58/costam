@@ -263,6 +263,16 @@ function cacheRuntimeMessage(message: any): void {
   }
 }
 
+function loadLoggedMessagesIntoCache(): void {
+  const loggedMessages = getLoggedMessages();
+  for (const entry of loggedMessages) {
+    if (entry.message) {
+      cacheRuntimeMessage(entry.message);
+    }
+  }
+  console.log(`${TAG} loaded ${loggedMessages.length} logged messages into cache`);
+}
+
 function getCachedRuntimeMessage(
   channelId?: string,
   messageId?: string,
@@ -893,6 +903,7 @@ export function onLoad(): void {
     return;
   }
 
+  loadLoggedMessagesIntoCache();
   setupMessageLogger();
 
   if (avatarModule.getUserAvatarSource) {
