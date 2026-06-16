@@ -1,6 +1,6 @@
 {
   "name": "Jajco Vendetta Pink Amethyst",
-  "description": "Vendetta dark base + pink UI override",
+  "description": "Dark Vendetta background with full Pink Amethyst accents",
   "authors": [
     {
       "name": "𝚄𝚛𝚊𝚗𝚒𝚌",
@@ -11,21 +11,21 @@
 
   "semanticColors": {
     "ANDROID_NAVIGATION_SCRIM_BACKGROUND": ["#0E0E0F"],
-    "ANDROID_RIPPLE": ["#fc037728"],
+    "ANDROID_RIPPLE": ["#53fc037728"],
 
-    "BACKGROUND_PRIMARY": ["#0E0E0F"],
-    "BACKGROUND_SECONDARY": ["#0f0f10"],
-    "BACKGROUND_SECONDARY_ALT": ["#0E0E0F"],
+    "BACKGROUND_PRIMARY": ["#181818"],
+    "BACKGROUND_SECONDARY": ["#141414"],
+    "BACKGROUND_SECONDARY_ALT": ["#5a0030"],
 
     "BACKGROUND_ACCENT": ["#fc0377"],
-    "BACKGROUND_MODIFIER_ACCENT": ["#fc037714"],
+    "BACKGROUND_MODIFIER_ACCENT": ["#8c8c8c12"],
     "BACKGROUND_MODIFIER_ACTIVE": ["#fc037714"],
-    "BACKGROUND_MODIFIER_HOVER": ["#fc037710"],
-    "BACKGROUND_MODIFIER_SELECTED": ["#fc037720"],
 
-    "BG_BASE_PRIMARY": ["#0E0E0F"],
-    "BG_BASE_SECONDARY": ["#0E0E0F"],
-    "BG_BASE_TERTIARY": ["#09090A"],
+    "BACKGROUND_MENTIONED": ["#fc037715"],
+
+    "BG_BASE_PRIMARY": ["#181818"],
+    "BG_BASE_SECONDARY": ["#141414"],
+    "BG_BASE_TERTIARY": ["#121212"],
 
     "BG_BRAND": ["#fc037795"],
     "BG_SURFACE_RAISED": ["#0E0E0F"],
@@ -40,24 +40,22 @@
     "EMBED_BACKGROUND_ALTERNATE": ["#111011"],
 
     "INTERACTIVE_NORMAL": ["#fc0377"],
-    "INTERACTIVE_ACTIVE": ["#ff4fa3"],
-    "INTERACTIVE_HOVER": ["#ff4fa3"],
+    "INTERACTIVE_ACTIVE": ["#fc0377"],
     "INTERACTIVE_MUTED": ["#262627"],
 
     "PANEL_BG": ["#0C0C0D"],
 
     "REDESIGN_BUTTON_PRIMARY_PRESSED_BACKGROUND": ["#8a0044"],
+
     "REDESIGN_BUTTON_SECONDARY_BACKGROUND": ["#8a0044"],
     "REDESIGN_BUTTON_SECONDARY_BORDER": ["#8a0044"],
     "REDESIGN_BUTTON_SECONDARY_PRESSED_BACKGROUND": ["#fc0377"],
-    "REDESIGN_BUTTON_SECONDARY_TEXT": ["#fc0377"],
+    "REDESIGN_BUTTON_SECONDARY_TEXT": ["#dbdee1"],
 
     "REDESIGN_BUTTON_TERTIARY_BACKGROUND": ["#0E0E0F"],
     "REDESIGN_BUTTON_TERTIARY_TEXT": ["#fc0377"],
 
     "REDESIGN_CHANNEL_CATEGORY_NAME_TEXT": ["#ff2c8a"],
-    "REDESIGN_CHANNEL_NAME_TEXT": ["#ff2c8a"],
-
     "REDESIGN_CHAT_INPUT_BACKGROUND": ["#0E0E0F"],
 
     "TEXT_NORMAL": ["#dbdee1"],
@@ -66,33 +64,70 @@
     "TEXT_MUTED": ["#818491"],
     "TEXT_LINK": ["#fc0377"],
 
-    "HEADER_PRIMARY": ["#fc0377"],
-    "HEADER_SECONDARY": ["#ff4fa3"],
-
     "TEXT_DANGER": ["#F83838"],
+
+    "BUTTON_OUTLINE_DANGER_BORDER": ["#F83838"],
+
+    "INFO_DANGER_BACKGROUND": ["#f23f431a"],
+    "INFO_DANGER_FOREGROUND": ["#F83838"],
+
     "STATUS_DANGER": ["#F83838"],
     "STATUS_DND": ["#f23f43"],
 
     "THREAD_CHANNEL_SPINE": ["#fc0377"],
+
     "PREMIUM_NITRO_PINK_TEXT": ["#fc0377"],
 
     "INPUT_BACKGROUND": ["#0E0E0F"],
 
     "BACKGROUND_MESSAGE_AUTOMOD": ["#fc03770d"],
     "BACKGROUND_MESSAGE_AUTOMOD_HOVER": ["#fc03771a"]
+	
+	"HEADER_PRIMARY": ["#fc0377"],
+	"HEADER_SECONDARY": ["#ff2c8a"],
+
+	"TEXT_NORMAL": ["#dbdee1"],
+	"TEXT_PRIMARY": ["#dbdee1"],
+	"TEXT_SECONDARY": ["#ff2c8a"],
+	"TEXT_MUTED": ["#c80066"],
+
+	"INTERACTIVE_NORMAL": ["#fc0377"],
+	"INTERACTIVE_ACTIVE": ["#ff2c8a"],
+	"INTERACTIVE_HOVER": ["#ff4da6"]
   },
 
   "rawColors": {
+    "BLUE_345": "#fc0377",
+
+    "GREEN_430": "#fc0377",
+    "GREEN_460": "#8a0044",
+
+    "RED_400": "#F83838",
+    "RED_430": "#E02929",
+    "RED_460": "#AF2323",
+
     "BRAND_260": "#fc0377",
     "BRAND_360": "#fc0377",
     "BRAND_500": "#fc0377",
     "BRAND_560": "#5a0030",
 
-    "PRIMARY_500": "#0E0E0F",
-    "PRIMARY_600": "#0E0E0F",
-    "PRIMARY_660": "#0E0E0F",
-    "PRIMARY_700": "#09090A",
-    "PRIMARY_800": "#09090A"
+    "PLUM_13": "#fc0377",
+    "PLUM_14": "#1D1D21",
+    "PLUM_15": "#fc0377",
+    "PLUM_16": "#1D1D21",
+    "PLUM_17": "#141414",
+    "PLUM_18": "#141414",
+    "PLUM_19": "#5a0030",
+    "PLUM_20": "#121212",
+    "PLUM_22": "#121212",
+    "PLUM_23": "#181818",
+    "PLUM_24": "#191919",
+
+    "PRIMARY_500": "#1E1D1E",
+    "PRIMARY_600": "#181818",
+    "PRIMARY_660": "#181818",
+    "PRIMARY_700": "#141414",
+    "PRIMARY_800": "#121212"
   },
 
   "plus": {
