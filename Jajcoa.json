@@ -1,6 +1,6 @@
 {
-  "name": "Jajco Vendetta Pink Amethyst",
-  "description": "Dark Vendetta background with full Pink Amethyst accents",
+  "name": "Jajco Vendetta Pink Amethyst V2",
+  "description": "Vendetta dark base with Vision Pro style pink amethyst UI tokens",
   "authors": [
     {
       "name": "𝚄𝚛𝚊𝚗𝚒𝚌",
@@ -11,17 +11,21 @@
 
   "semanticColors": {
     "ANDROID_NAVIGATION_SCRIM_BACKGROUND": ["#0E0E0F"],
-    "ANDROID_RIPPLE": ["#53fc037728"],
+    "ANDROID_RIPPLE": ["#fc037728"],
 
     "BACKGROUND_PRIMARY": ["#181818"],
     "BACKGROUND_SECONDARY": ["#141414"],
+    "BACKGROUND_TERTIARY": ["#121212"],
     "BACKGROUND_SECONDARY_ALT": ["#5a0030"],
 
     "BACKGROUND_ACCENT": ["#fc0377"],
-    "BACKGROUND_MODIFIER_ACCENT": ["#8c8c8c12"],
+    "BACKGROUND_MODIFIER_ACCENT": ["#fc037714"],
     "BACKGROUND_MODIFIER_ACTIVE": ["#fc037714"],
+    "BACKGROUND_MODIFIER_HOVER": ["#fc037710"],
+    "BACKGROUND_MODIFIER_SELECTED": ["#fc037720"],
 
     "BACKGROUND_MENTIONED": ["#fc037715"],
+    "BACKGROUND_MENTIONED_HOVER": ["#fc037730"],
 
     "BG_BASE_PRIMARY": ["#181818"],
     "BG_BASE_SECONDARY": ["#141414"],
@@ -40,13 +44,30 @@
     "EMBED_BACKGROUND_ALTERNATE": ["#111011"],
 
     "INTERACTIVE_NORMAL": ["#fc0377"],
-    "INTERACTIVE_ACTIVE": ["#fc0377"],
+    "INTERACTIVE_ACTIVE": ["#ff2c8a"],
+    "INTERACTIVE_HOVER": ["#ff4fa3"],
     "INTERACTIVE_MUTED": ["#262627"],
 
     "PANEL_BG": ["#0C0C0D"],
 
-    "REDESIGN_BUTTON_PRIMARY_PRESSED_BACKGROUND": ["#8a0044"],
+    "HEADER_PRIMARY": ["#ff2c8a"],
+    "HEADER_SECONDARY": ["#ff4fa3"],
 
+    "TEXT_NORMAL": ["#dbdee1"],
+    "TEXT_PRIMARY": ["#ff2c8a"],
+    "TEXT_SECONDARY": ["#b5bac1"],
+    "TEXT_MUTED": ["#818491"],
+    "TEXT_LINK": ["#fc0377"],
+
+    "TEXT_DANGER": ["#F83838"],
+
+    "THREAD_CHANNEL_SPINE": ["#fc0377"],
+
+    "PREMIUM_NITRO_PINK_TEXT": ["#fc0377"],
+
+    "INPUT_BACKGROUND": ["#0E0E0F"],
+
+    "REDESIGN_BUTTON_PRIMARY_PRESSED_BACKGROUND": ["#8a0044"],
     "REDESIGN_BUTTON_SECONDARY_BACKGROUND": ["#8a0044"],
     "REDESIGN_BUTTON_SECONDARY_BORDER": ["#8a0044"],
     "REDESIGN_BUTTON_SECONDARY_PRESSED_BACKGROUND": ["#fc0377"],
@@ -56,32 +77,14 @@
     "REDESIGN_BUTTON_TERTIARY_TEXT": ["#fc0377"],
 
     "REDESIGN_CHANNEL_CATEGORY_NAME_TEXT": ["#ff2c8a"],
+
     "REDESIGN_CHAT_INPUT_BACKGROUND": ["#0E0E0F"],
 
-    "TEXT_NORMAL": ["#dbdee1"],
-    "TEXT_PRIMARY": ["#dbdee1"],
-    "TEXT_SECONDARY": ["#b5bac1"],
-    "TEXT_MUTED": ["#818491"],
-    "TEXT_LINK": ["#fc0377"],
-
-    "TEXT_DANGER": ["#F83838"],
-
-    "BUTTON_OUTLINE_DANGER_BORDER": ["#F83838"],
-
-    "INFO_DANGER_BACKGROUND": ["#f23f431a"],
-    "INFO_DANGER_FOREGROUND": ["#F83838"],
-
-    "STATUS_DANGER": ["#F83838"],
-    "STATUS_DND": ["#f23f43"],
-
-    "THREAD_CHANNEL_SPINE": ["#fc0377"],
-
-    "PREMIUM_NITRO_PINK_TEXT": ["#fc0377"],
-
-    "INPUT_BACKGROUND": ["#0E0E0F"],
-
     "BACKGROUND_MESSAGE_AUTOMOD": ["#fc03770d"],
-    "BACKGROUND_MESSAGE_AUTOMOD_HOVER": ["#fc03771a"]
+    "BACKGROUND_MESSAGE_AUTOMOD_HOVER": ["#fc03771a"],
+
+    "MENTION_FOREGROUND": ["#fc0377"],
+    "MENTION_BACKGROUND": ["#fc037715"]
   },
 
   "rawColors": {
